@@ -157,6 +157,8 @@
   /* Add to sprint button */
   .add-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--purple); color: var(--purple); background: var(--purple-light); cursor: pointer; font-family: var(--sans); transition: all .15s; white-space: nowrap; }
   .add-btn:hover { background: var(--purple); color: white; }
+  .remove-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); color: var(--text3); background: none; cursor: pointer; font-family: var(--sans); transition: all .15s; white-space: nowrap; }
+  .remove-btn:hover { background: var(--red-light); color: var(--red); border-color: var(--red); }
 
   /* Modal */
   .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 100; align-items: center; justify-content: center; }
@@ -452,6 +454,7 @@ let aiRun = false;
 let addedToSprint = new Set();
 let currentFilter = 'all';
 let pendingId = null;
+let pendingSource = null;
 
 function pb(p){ return `<span class="badge b-${p}">${p.charAt(0).toUpperCase()+p.slice(1)}</span>`; }
 function rb(r){
@@ -460,6 +463,9 @@ function rb(r){
   return '<span class="badge b-red">Not ready</span>';
 }
 function rdot(r){ return `<div class="rdot rdot-${r}"></div>`; }
+
+// Track which original SPRINT tickets have been moved back to backlog
+let removedFromSprint = new Set();
 
 function renderSprintTicket(t){
   const issues = t.issues?.length ? `<div class="issue-block">
@@ -478,7 +484,11 @@ function renderSprintTicket(t){
       <div class="ticket-meta">${pb(t.priority)}<span class="badge b-type">${t.type}</span>${rb(t.readiness)}${dl}</div>
       ${issues}${questions}
     </div>
-    <div class="ticket-right"><span class="pts">${t.pts} pts</span>${rdot(t.readiness)}</div>
+    <div class="ticket-right">
+      <span class="pts">${t.pts} pts</span>
+      ${rdot(t.readiness)}
+      <button class="remove-btn" onclick="removeFromSprint('${t.id}')">↩ Backlog</button>
+    </div>
   </div>`;
 }
 
@@ -521,8 +531,11 @@ function renderBacklogTicket(t){
       </div>
     </div>` : '';
   const chevron = hasIssues ? `<div class="chevron-indicator" id="chev-${t.id}">&#8964;</div>` : '';
-  const clickable = hasIssues ? `onclick="toggleExpand('${t.id}')" style="cursor:pointer"` : '';
-  return `<div class="ticket plain" ${clickable}>
+  const alreadyInSprint = addedToSprint.has(t.id);
+  const addBtn = alreadyInSprint
+    ? `<span class="badge b-sprint" style="font-size:11px">In sprint ✓</span>`
+    : `<button class="add-btn" onclick="event.stopPropagation();openBacklogModal('${t.id}')">+ Add to sprint</button>`;
+  return `<div class="ticket plain" onclick="toggleExpand('${t.id}')" style="${hasIssues?'cursor:pointer':''}">
     <div class="ticket-body">
       <div class="ticket-top"><span class="ticket-id">${t.id}</span></div>
       <div class="ticket-title">${t.title}</div>
@@ -531,7 +544,8 @@ function renderBacklogTicket(t){
     </div>
     <div class="ticket-right">
       <span class="pts">${t.pts} pts</span>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">${rdot(t.readiness)}${chevron}</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">${rdot(t.readiness)}${chevron}</div>
+      ${addBtn}
     </div>
   </div>`;
 }
@@ -556,15 +570,25 @@ function getFilteredSuggestions(){
 }
 
 function renderAll(){
-  // Sprint queue
-  const allSprint = [...SPRINT, ...SUGGESTIONS.filter(t=>addedToSprint.has(t.id)).map(t=>({...t,issues:t.readiness!=='green'?['Review AI reasoning before grooming']:[]}))];
+  // All IDs currently in sprint
+  const inSprintIds = new Set([
+    ...SPRINT.filter(t=>!removedFromSprint.has(t.id)).map(t=>t.id),
+    ...Array.from(addedToSprint)
+  ]);
+
+  // Sprint queue — original minus removed, plus added suggestions and backlog tickets
+  const allSprint = [
+    ...SPRINT.filter(t=>!removedFromSprint.has(t.id)),
+    ...SUGGESTIONS.filter(t=>addedToSprint.has(t.id)).map(t=>({...t,issues:t.readiness!=='green'?['Review AI reasoning before grooming']:[],questions:[]})),
+    ...BACKLOG_REST.filter(t=>addedToSprint.has(t.id)).map(t=>({...t,questions:[]})),
+  ];
   document.getElementById('sprint-list').innerHTML = allSprint.map(renderSprintTicket).join('');
   updateStats(allSprint);
 
-  // Backlog suggestions
+  // Backlog suggestions — hide if already in sprint
   if(aiRun){
-    const suggs = getFilteredSuggestions();
-    const remaining = SUGGESTIONS.filter(t=>!addedToSprint.has(t.id)).length;
+    const suggs = getFilteredSuggestions().filter(t=>!inSprintIds.has(t.id));
+    const remaining = SUGGESTIONS.filter(t=>!inSprintIds.has(t.id)).length;
     document.getElementById('suggested-section').style.display = suggs.length ? 'block' : 'none';
     document.getElementById('suggested-list').innerHTML = suggs.map(renderSuggestion).join('');
     document.getElementById('suggested-remaining').textContent = remaining > 0 ? `${remaining} not yet added` : 'All added ✓';
@@ -573,8 +597,8 @@ function renderAll(){
     document.getElementById('suggested-section').style.display = 'none';
   }
 
-  // Backlog rest
-  const filtered = getFilteredBacklog();
+  // Backlog rest — exclude anything currently in sprint
+  const filtered = getFilteredBacklog().filter(t=>!inSprintIds.has(t.id));
   document.getElementById('backlog-title').textContent = `Backlog · ${filtered.length} tickets`;
   document.getElementById('backlog-list').innerHTML = filtered.map(renderBacklogTicket).join('');
 
@@ -653,6 +677,15 @@ function runAI(){
   }, 1600);
 }
 
+function removeFromSprint(id){
+  removedFromSprint.add(id);
+  addedToSprint.delete(id);
+  // Also remove from SPRINT array if it was added via backlog
+  const idx = SPRINT.findIndex(t=>t.id===id);
+  if(idx > -1 && removedFromSprint.has(id)) {} // handled via filter
+  renderAll();
+}
+
 function toggleExpand(id){
   const block = document.getElementById('expand-'+id);
   const chev = document.getElementById('chev-'+id);
@@ -680,10 +713,21 @@ function openDevBrief(){
 }
 function closeDevBrief(){ document.getElementById('dev-brief-modal').classList.remove('visible'); }
 
+function openBacklogModal(id){
+  const t = BACKLOG_REST.find(t=>t.id===id);
+  if(!t) return;
+  pendingId = id;
+  pendingSource = 'backlog';
+  document.getElementById('modal-id').textContent = t.id;
+  document.getElementById('modal-title').textContent = t.title;
+  document.getElementById('modal').classList.add('visible');
+}
+
 function openModal(id){
   const t = SUGGESTIONS.find(t=>t.id===id);
   if(!t) return;
   pendingId = id;
+  pendingSource = 'suggestion';
   document.getElementById('modal-id').textContent = t.id;
   document.getElementById('modal-title').textContent = t.title;
   document.getElementById('modal').classList.add('visible');
@@ -692,6 +736,12 @@ function closeModal(){ document.getElementById('modal').classList.remove('visibl
 function confirmAdd(){
   if(!pendingId) return;
   addedToSprint.add(pendingId);
+  if(pendingSource === 'suggestion') {
+    // already handled via addedToSprint in renderAll
+  } else {
+    const t = BACKLOG_REST.find(t=>t.id===pendingId);
+    if(t) SPRINT.push({...t, issues: t.issues||[], questions:[]});
+  }
   closeModal();
   renderAll();
 }
