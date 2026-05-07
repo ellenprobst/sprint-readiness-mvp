@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReadyCheck — Sprint 24</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F2EE;
+    --surface: #FFFFFF;
+    --surface2: #F0EDE8;
+    --border: #E2DED8;
+    --text: #1A1916;
+    --text2: #6B6860;
+    --text3: #9E9B95;
+    --purple: #5B4FE8;
+    --purple-light: #EEEDFD;
+    --green: #1A7F5A;
+    --green-light: #E6F5EF;
+    --amber: #C47B1A;
+    --amber-light: #FEF3E2;
+    --red: #C23B3B;
+    --red-light: #FDECEC;
+    --blue: #1A5FA8;
+    --blue-light: #E8F0FB;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+  .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  .sidebar-header { padding: 24px 20px 16px; border-bottom: 1px solid var(--border); }
+  .logo { font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--purple); font-family: var(--mono); }
+  .logo-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  .sprint-card { margin: 16px; background: var(--purple-light); border: 1px solid #C5BFFA; border-radius: 10px; padding: 14px; }
+  .sprint-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--purple); margin-bottom: 4px; }
+  .sprint-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .sprint-dates { font-size: 12px; color: var(--text2); margin-top: 2px; font-family: var(--mono); }
+  .jira-sync { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--green); margin-top: 8px; }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .sidebar-section { padding: 14px 20px 8px; }
+  .sidebar-section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 10px; }
+  .stat-row { display: flex; justify-content: space-between; margin-bottom: 7px; }
+  .stat-label { font-size: 13px; color: var(--text2); }
+  .stat-val { font-size: 13px; font-weight: 600; font-family: var(--mono); }
+  .readiness-bar { height: 5px; background: var(--border); border-radius: 3px; margin: 10px 0 4px; overflow: hidden; }
+  .readiness-fill { height: 100%; border-radius: 3px; background: var(--green); transition: width .4s; }
+  .readiness-label { font-size: 11px; color: var(--text3); }
+
+  .filter-group { display: flex; flex-direction: column; gap: 2px; padding: 0 12px 12px; }
+  .filter-btn { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 8px; border: none; background: none; cursor: pointer; font-family: var(--sans); font-size: 13px; color: var(--text2); text-align: left; transition: background .15s; width: 100%; }
+  .filter-btn:hover { background: var(--surface2); }
+  .filter-btn.active { background: var(--surface2); color: var(--text); font-weight: 500; }
+  .filter-left { display: flex; align-items: center; gap: 8px; }
+  .filter-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .filter-count { font-size: 11px; font-family: var(--mono); color: var(--text3); }
+
+  .sidebar-footer { margin-top: auto; padding: 14px 16px; border-top: 1px solid var(--border); }
+  .run-btn { width: 100%; padding: 11px; background: var(--purple); color: white; border: none; border-radius: 10px; font-family: var(--sans); font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity .15s, transform .1s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .run-btn:hover { opacity: .9; }
+  .run-btn:active { transform: scale(.98); }
+  .run-btn.done { background: var(--green); cursor: default; }
+
+  /* Main */
+  .main { display: flex; flex-direction: column; overflow: hidden; }
+  .main-header { padding: 24px 28px 0; }
+  .main-title { font-size: 20px; font-weight: 600; }
+  .main-sub { font-size: 13px; color: var(--text2); margin-top: 3px; }
+
+  .tabs { display: flex; padding: 0 28px; border-bottom: 1px solid var(--border); margin-top: 16px; }
+  .tab { padding: 10px 16px; font-size: 13px; font-weight: 500; color: var(--text2); border-bottom: 2px solid transparent; cursor: pointer; transition: color .15s; margin-bottom: -1px; display: flex; align-items: center; gap: 7px; }
+  .tab.active { color: var(--purple); border-bottom-color: var(--purple); }
+  .tab:hover:not(.active) { color: var(--text); }
+  .tab-pill { font-size: 11px; font-family: var(--mono); background: var(--surface2); color: var(--text3); padding: 1px 7px; border-radius: 10px; }
+  .tab.active .tab-pill { background: var(--purple-light); color: var(--purple); }
+
+  .content { padding: 20px 28px; overflow-y: auto; flex: 1; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Banners */
+  .banner { border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 12px; font-size: 13px; line-height: 1.6; }
+  .banner-jira { background: var(--blue-light); border: 1px solid #85B7EB; color: var(--blue); }
+  .banner-ai { background: var(--purple-light); border: 1px solid #C5BFFA; }
+  .banner-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+
+  /* Stats row */
+  .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 18px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .stat-num { font-size: 22px; font-weight: 600; font-family: var(--mono); }
+  .stat-lbl { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* Section headers */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); }
+
+  /* Tickets */
+  .ticket-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+
+  .ticket { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 14px; }
+  .ticket.sprint-ticket { border-left: 3px solid var(--green); }
+  .ticket.ai-suggested { border-left: 3px solid var(--purple); cursor: pointer; transition: box-shadow .15s, border-color .15s; }
+  .ticket.ai-suggested:hover { box-shadow: 0 2px 12px rgba(91,79,232,.1); border-color: var(--purple); }
+  .ticket.plain { cursor: default; }
+
+  .ticket-body { flex: 1; min-width: 0; }
+  .ticket-top { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; flex-wrap: wrap; }
+  .ticket-id { font-size: 11px; font-family: var(--mono); color: var(--text3); }
+  .ticket-title { font-size: 14px; font-weight: 500; line-height: 1.4; }
+  .ticket-meta { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; white-space: nowrap; }
+  .b-high { background: var(--red-light); color: var(--red); }
+  .b-medium { background: var(--amber-light); color: var(--amber); }
+  .b-low { background: var(--surface2); color: var(--text2); }
+  .b-green { background: var(--green-light); color: var(--green); }
+  .b-amber { background: var(--amber-light); color: var(--amber); }
+  .b-red { background: var(--red-light); color: var(--red); }
+  .b-type { background: var(--blue-light); color: var(--blue); }
+  .b-ai { background: var(--purple-light); color: var(--purple); display:flex;align-items:center;gap:3px; }
+  .b-sprint { background: var(--green-light); color: var(--green); }
+  .b-deadline { background: var(--red-light); color: var(--red); }
+
+  .ticket-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+  .pts { font-size: 12px; font-family: var(--mono); color: var(--text3); }
+  .rdot { width: 8px; height: 8px; border-radius: 50%; margin-top: 2px; }
+  .rdot-green { background: var(--green); }
+  .rdot-amber { background: var(--amber); }
+  .rdot-red { background: var(--red); }
+
+  /* AI reason block */
+  .ai-reason { margin-top: 8px; padding: 9px 12px; background: var(--purple-light); border-radius: 8px; border-left: 2px solid var(--purple); }
+  .ai-reason-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--purple); margin-bottom: 3px; }
+  .ai-reason-text { font-size: 12px; color: var(--text2); line-height: 1.55; }
+
+  /* Issue block */
+  .issue-block { margin-top: 8px; padding: 8px 10px; background: var(--red-light); border-radius: 8px; border-left: 2px solid var(--red); }
+  .issue-item { font-size: 12px; color: var(--red); line-height: 1.5; }
+  .issue-item + .issue-item { margin-top: 2px; }
+  .block-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .issue-block .block-label { color: var(--red); }
+
+  /* Anticipated questions block */
+  .questions-block { margin-top: 6px; padding: 8px 10px; background: var(--blue-light); border-radius: 8px; border-left: 2px solid #85B7EB; }
+  .questions-block .block-label { color: var(--blue); }
+  .question-item { font-size: 12px; color: var(--blue); line-height: 1.5; }
+  .question-item + .question-item { margin-top: 2px; }
+  .question-item::before { content: '? '; font-weight: 600; }
+
+  /* Add to sprint button */
+  .add-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--purple); color: var(--purple); background: var(--purple-light); cursor: pointer; font-family: var(--sans); transition: all .15s; white-space: nowrap; }
+  .add-btn:hover { background: var(--purple); color: white; }
+
+  /* Modal */
+  .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 100; align-items: center; justify-content: center; }
+  .modal-backdrop.visible { display: flex; }
+  .modal { background: var(--surface); border-radius: 16px; padding: 26px; width: 370px; }
+  .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .modal-ticket-preview { background: var(--surface2); border-radius: 8px; padding: 10px 12px; margin: 12px 0; }
+  .modal-ticket-id { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+  .modal-ticket-title { font-size: 14px; font-weight: 500; margin-top: 2px; }
+  .modal-body { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 18px; }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-cancel { flex:1; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background: none; font-family: var(--sans); font-size: 14px; cursor: pointer; color: var(--text2); }
+  .modal-cancel:hover { background: var(--surface2); }
+  .modal-confirm { flex:1; padding: 10px; border: none; border-radius: 10px; background: var(--purple); color: white; font-family: var(--sans); font-size: 14px; font-weight: 500; cursor: pointer; }
+  .modal-confirm:hover { opacity: .9; }
+  .modal-note { font-size: 11px; color: var(--text3); margin-top: 10px; text-align: center; }
+
+  /* Timeline */
+  .timeline-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .tl-legend { display: flex; gap: 14px; }
+  .tl-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+  .tl-dot { width: 10px; height: 10px; border-radius: 3px; }
+  .week-labels { display: flex; padding-left: 130px; margin: 14px 0 6px; }
+  .week-lbl { flex: 1; font-size: 10px; font-family: var(--mono); color: var(--text3); }
+  .tl-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .tl-label { width: 120px; font-size: 12px; color: var(--text2); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+  .tl-track { flex: 1; height: 28px; background: var(--surface2); border-radius: 6px; position: relative; }
+  .tl-bar { height: 100%; border-radius: 6px; display: flex; align-items: center; padding: 0 8px; font-size: 11px; font-weight: 500; position: absolute; }
+
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--text2); }
+  .empty-icon { font-size: 32px; margin-bottom: 10px; }
+  .empty-title { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 5px; }
+  .empty-sub { font-size: 13px; line-height: 1.6; }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .dev-brief-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); font-family: var(--sans); font-size: 12px; font-weight: 500; color: var(--text2); cursor: pointer; transition: all .15s; align-self: center; }
+  .dev-brief-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--text3); }
+
+  /* Slack mockup */
+  .slack-wrap { background: #1A1D21; border-radius: 10px; padding: 16px; }
+  .slack-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .slack-avatar { width: 36px; height: 36px; border-radius: 8px; background: var(--purple); color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; font-family: var(--mono); }
+  .slack-name { font-size: 14px; font-weight: 700; color: #FFFFFF; display: flex; align-items: center; gap: 6px; }
+  .slack-app-badge { font-size: 10px; font-weight: 500; background: #4A9D6F; color: white; padding: 1px 5px; border-radius: 3px; }
+  .slack-time { font-size: 11px; color: #7C8A97; margin-top: 1px; }
+  .slack-body { padding-left: 46px; }
+  .slack-intro { font-size: 13px; color: #D4D8DD; line-height: 1.6; margin-bottom: 14px; }
+  .slack-intro strong { color: #FFFFFF; }
+  .slack-ticket-block { background: #222529; border-left: 3px solid var(--purple); border-radius: 4px; padding: 10px 12px; margin-bottom: 8px; }
+  .slack-ticket-block.green { border-left-color: #1A7F5A; }
+  .slack-ticket-block.amber { border-left-color: #C47B1A; }
+  .slack-ticket-block.red { border-left-color: #C23B3B; }
+  .slack-ticket-id { font-size: 11px; font-family: var(--mono); color: #7C8A97; margin-bottom: 3px; }
+  .slack-ticket-title { font-size: 13px; font-weight: 600; color: #FFFFFF; margin-bottom: 6px; }
+  .slack-ticket-qs { font-size: 12px; color: #A8B3BF; line-height: 1.6; }
+  .slack-ticket-qs .sq { color: #7EB8D4; }
+  .slack-ticket-no-qs { font-size: 12px; color: #4A9D6F; }
+  .slack-footer { font-size: 12px; color: #7C8A97; margin-top: 12px; line-height: 1.5; }
+  .backlog-filters { display: flex; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+  .filter-group-inline { display: flex; align-items: center; gap: 6px; }
+  .filter-group-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-right: 2px; white-space: nowrap; }
+  .filter-divider { width: 1px; height: 20px; background: var(--border); margin: 0 8px; flex-shrink: 0; }
+  .ifilter { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border); background: none; font-family: var(--sans); font-size: 12px; color: var(--text2); cursor: pointer; transition: all .15s; white-space: nowrap; }
+  .ifilter:hover { background: var(--surface2); color: var(--text); }
+  .ifilter.active { background: var(--surface2); color: var(--text); border-color: var(--text3); font-weight: 500; }
+  .ifilter-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div class="modal-backdrop" id="dev-brief-modal">
+  <div class="modal" style="width:520px;max-width:95vw;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div class="modal-title" style="margin-bottom:2px">Dev briefing preview</div>
+        <div style="font-size:12px;color:var(--text3)">Sent to #eng-grooming · tonight at 6pm</div>
+      </div>
+      <button onclick="closeDevBrief()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text3);padding:4px">×</button>
+    </div>
+
+    <!-- Slack message mockup -->
+    <div class="slack-wrap">
+      <div class="slack-header">
+        <div class="slack-avatar">RC</div>
+        <div>
+          <div class="slack-name">ReadyCheck <span class="slack-app-badge">App</span></div>
+          <div class="slack-time">Today at 6:00 PM</div>
+        </div>
+      </div>
+
+      <div class="slack-body">
+        <div class="slack-intro">👋 <strong>Grooming tomorrow at 10am · Sprint 24</strong><br>
+        Here are the tickets and anticipated technical questions. Worth a 5-minute read beforehand.</div>
+
+        <div id="slack-tickets"></div>
+
+        <div class="slack-footer">Questions or concerns? Drop them in thread before the session — the PM will pick them up tonight.</div>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="modal-cancel" onclick="closeDevBrief()">Close</button>
+      <button class="modal-confirm" style="display:flex;align-items:center;gap:6px">📨 Send to Slack</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div class="modal-title">Add to Sprint 24 in Jira?</div>
+    <div class="modal-ticket-preview">
+      <div class="modal-ticket-id" id="modal-id"></div>
+      <div class="modal-ticket-title" id="modal-title"></div>
+    </div>
+    <div class="modal-body">This will move the ticket into <strong>Sprint 24</strong> directly in Jira. The sprint queue will reflect the change automatically.</div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-confirm" onclick="confirmAdd()">Add in Jira →</button>
+    </div>
+    <div class="modal-note">⚡ Writes to Jira · Sprint 24 stays source of truth</div>
+  </div>
+</div>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">ReadyCheck</div>
+      <div class="logo-sub">Sprint readiness · MVP</div>
+    </div>
+
+    <div class="sprint-card">
+      <div class="sprint-label">Upcoming sprint</div>
+      <div class="sprint-name">Sprint 24</div>
+      <div class="sprint-dates">19 May → 30 May 2026</div>
+      <div class="jira-sync"><div class="sync-dot"></div>Live from Jira · just now</div>
+    </div>
+
+    <div style="padding: 0 16px 16px;">
+      <button class="run-btn" id="run-btn" onclick="runAI()">✦ Run AI analysis</button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Sprint 24 health</div>
+      <div class="stat-row"><span class="stat-label">Tickets</span><span class="stat-val" id="sb-total">5</span></div>
+      <div class="stat-row"><span class="stat-label">Story points</span><span class="stat-val" id="sb-pts">24</span></div>
+      <div class="stat-row"><span class="stat-label">Ready</span><span class="stat-val" style="color:var(--green)" id="sb-ready">2</span></div>
+      <div class="stat-row"><span class="stat-label">Need attention</span><span class="stat-val" style="color:var(--amber)" id="sb-issues">3</span></div>
+      <div class="readiness-bar"><div class="readiness-fill" id="sb-bar" style="width:50%"></div></div>
+      <div class="readiness-label" id="sb-label">50% ready</div>
+    </div>
+
+  </div>
+
+  <div class="main">
+    <div class="main-header">
+      <div class="main-title">Sprint 24 — Readiness</div>
+      <div class="main-sub">Jira is source of truth · ReadyCheck reads and advises</div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('sprint',this)">
+        Sprint queue <span class="tab-pill" id="tab-sprint-count">5</span>
+      </div>
+      <div class="tab" onclick="switchTab('backlog',this)">
+        Backlog <span class="tab-pill">47</span>
+      </div>
+      <div class="tab" onclick="switchTab('timeline',this)">
+        Timeline
+      </div>
+      <button class="dev-brief-btn" onclick="openDevBrief()">📨 Preview dev briefing</button>
+    </div>
+
+    <div class="content">
+
+      <!-- Sprint queue -->
+      <div class="tab-content active" id="tab-sprint">
+        <div class="banner banner-jira">
+          <div class="banner-icon">⚡</div>
+          <div>Pulled live from Jira · Sprint 24. To add or remove tickets update the sprint in Jira — or use <strong>Add to sprint</strong> on any AI-suggested backlog ticket.</div>
+        </div>
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-num" id="st-total">5</div><div class="stat-lbl">Tickets</div></div>
+          <div class="stat-card"><div class="stat-num" id="st-pts">24</div><div class="stat-lbl">Story points</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:var(--green)" id="st-ready">2</div><div class="stat-lbl">Ready</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:var(--red)" id="st-issues">3</div><div class="stat-lbl">Need attention</div></div>
+        </div>
+        <div class="section-header">
+          <span class="section-title">In Sprint 24 · from Jira</span>
+        </div>
+        <div class="ticket-list" id="sprint-list"></div>
+      </div>
+
+      <!-- Backlog -->
+      <div class="tab-content" id="tab-backlog">
+        <div class="backlog-filters">
+          <div class="filter-group-inline">
+            <span class="filter-group-label">Priority</span>
+            <button class="ifilter active" onclick="setFilter('all',this)"><span class="ifilter-dot" style="background:var(--text3)"></span>All</button>
+            <button class="ifilter" onclick="setFilter('suggested',this)"><span class="ifilter-dot" style="background:var(--purple)"></span>AI suggested</button>
+            <button class="ifilter" onclick="setFilter('high',this)"><span class="ifilter-dot" style="background:var(--red)"></span>High priority</button>
+          </div>
+          <div class="filter-divider"></div>
+          <div class="filter-group-inline">
+            <span class="filter-group-label">Readiness</span>
+            <button class="ifilter" onclick="setFilter('ready',this)"><span class="ifilter-dot" style="background:var(--green)"></span>Ready</button>
+            <button class="ifilter" onclick="setFilter('amber',this)"><span class="ifilter-dot" style="background:var(--amber)"></span>Needs attention</button>
+            <button class="ifilter" onclick="setFilter('notready',this)"><span class="ifilter-dot" style="background:var(--red)"></span>Not ready</button>
+          </div>
+        </div>
+
+        <div class="banner banner-ai" id="ai-banner" style="display:none">
+          <div class="banner-icon">✦</div>
+          <div><strong>AI analysis complete.</strong> 6 tickets highlighted as suggestions for Sprint 24 based on priority, deadlines, and capacity (~21 pts remaining). Each shows the reasoning. Click <em>Add to sprint</em> to move into Jira.</div>
+        </div>
+
+        <div id="suggested-section" style="display:none">
+          <div class="section-header">
+            <span class="section-title">✦ AI suggested for Sprint 24</span>
+            <span style="font-size:11px;color:var(--text3)" id="suggested-remaining"></span>
+          </div>
+          <div class="ticket-list" id="suggested-list"></div>
+        </div>
+
+        <div class="section-header">
+          <span class="section-title" id="backlog-title">Backlog · 47 tickets</span>
+        </div>
+        <div class="ticket-list" id="backlog-list"></div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="tab-content" id="tab-timeline">
+        <div class="timeline-wrap">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <div style="font-size:14px;font-weight:600">Feature timeline · 8 weeks</div>
+            <div class="tl-legend">
+              <div class="tl-legend-item"><div class="tl-dot" style="background:#C5BFFA"></div>Sprint</div>
+              <div class="tl-legend-item"><div class="tl-dot" style="background:#9FE1CB"></div>Feature window</div>
+              <div class="tl-legend-item"><div class="tl-dot" style="background:#F09595"></div>Deadline</div>
+            </div>
+          </div>
+          <div class="week-labels">
+            <div class="week-lbl">May 19</div><div class="week-lbl">May 26</div><div class="week-lbl">Jun 2</div>
+            <div class="week-lbl">Jun 9</div><div class="week-lbl">Jun 16</div><div class="week-lbl">Jun 23</div>
+            <div class="week-lbl">Jun 30</div><div class="week-lbl">Jul 7</div>
+          </div>
+          <div id="timeline-grid"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:10px">Showing tickets currently in Sprint 24. AI-suggested tickets appear here once added.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const SPRINT = [
+  { id:'ENG-201', title:'Bulk export reports as CSV', priority:'high', type:'Feature', pts:8, readiness:'green', feature:'Bulk export', deadline:'Jun 6', issues:[], questions:[] },
+  { id:'ENG-215', title:'Time dimension config — explicit bounds', priority:'high', type:'Tech debt', pts:3, readiness:'green', feature:'GeoServer', deadline:'May 30', issues:[], questions:[] },
+  { id:'ENG-207', title:'Fix memory cliff during GeoServer publish', priority:'high', type:'Bug', pts:5, readiness:'amber', feature:'GeoServer', deadline:'May 30', issues:['Missing: explicit start/end values in TimeDimensionConfig','No linked Confluence spec found'], questions:['What safety margin should be applied to the time bounds?','Should this fix apply to both daily and hourly publish paths?'] },
+  { id:'ENG-231', title:'Tenant timezone handling in publish workflow', priority:'high', type:'Bug', pts:3, readiness:'amber', feature:'GeoServer', deadline:'May 30', issues:['Missing: which timezone standard to apply','No linked Confluence spec found'], questions:['Which timezone standard applies — tenant local time or UTC?','Does this affect existing published data or only new publishes?'] },
+  { id:'ENG-308', title:'Optimise API response caching', priority:'medium', type:'Tech debt', pts:5, readiness:'red', feature:'API', deadline:null, issues:['No description — ticket has a title only','No acceptance criteria','No linked Confluence page or spec'], questions:[] },
+];
+
+const SUGGESTIONS = [
+  { id:'ENG-198', title:'Export history page', priority:'medium', type:'Feature', pts:5, readiness:'green', feature:'Bulk export', deadline:'Jun 6', why:'Companion to ENG-201 already in sprint. Clean ticket, AC present, no blockers. Adds 5 pts — fits remaining capacity.' },
+  { id:'ENG-191', title:'Retry logic on failed exports', priority:'medium', type:'Feature', pts:3, readiness:'green', feature:'Bulk export', deadline:'Jun 6', why:'Small, well-scoped. Directly supports the bulk export feature already in sprint. Good capacity filler.' },
+  { id:'ENG-189', title:'User dashboard — weekly summary widget', priority:'medium', type:'Feature', pts:8, readiness:'amber', feature:'Dashboard v2', deadline:'Jun 20', why:'Q2 deadline pressure. Confluence spec exists but last updated 3 months ago — PM should verify scope is still current before grooming.' },
+  { id:'ENG-244', title:'Notification centre — in-app alerts', priority:'medium', type:'Feature', pts:8, readiness:'green', feature:'Notifications', deadline:'Jun 27', why:'Well-defined scope, Confluence page current, no open questions. Could slide to next sprint if capacity is tight.' },
+  { id:'ENG-196', title:'Webhook delivery — exponential backoff', priority:'medium', type:'Tech debt', pts:5, readiness:'green', feature:'Webhooks', deadline:null, why:'No hard deadline but addresses reliability debt. Small scope, green readiness. Good sprint filler.' },
+  { id:'ENG-223', title:'Auth service v2 — token refresh flow', priority:'high', type:'Feature', pts:13, readiness:'red', feature:'Auth v2', deadline:'Jul 1', why:'High priority but not ready — 2 unresolved open questions in Confluence (session timeout behaviour, multi-device handling). Surfaced so PM can resolve before next sprint.' },
+];
+
+const BACKLOG_REST = [
+  { id:'ENG-156', title:'Improve search indexing latency', priority:'medium', type:'Tech debt', pts:5, readiness:'amber', feature:'Search', deadline:null },
+  { id:'ENG-167', title:'Mobile nav — bottom tab bar', priority:'low', type:'Feature', pts:8, readiness:'amber', feature:'Mobile', deadline:null },
+  { id:'ENG-172', title:'Stale session cleanup job', priority:'medium', type:'Tech debt', pts:3, readiness:'green', feature:'Auth v2', deadline:null },
+  { id:'ENG-178', title:'PDF export format', priority:'low', type:'Feature', pts:13, readiness:'red', feature:'Bulk export', deadline:null },
+  { id:'ENG-183', title:'Rate limit dashboard for API consumers', priority:'medium', type:'Feature', pts:5, readiness:'amber', feature:'API', deadline:null },
+  { id:'ENG-209', title:'GDPR export log for enterprise', priority:'high', type:'Feature', pts:8, readiness:'red', feature:'Compliance', deadline:null },
+  { id:'ENG-214', title:'Audit trail — admin actions', priority:'medium', type:'Feature', pts:5, readiness:'amber', feature:'Compliance', deadline:null },
+];
+for(let i=8;i<=35;i++) BACKLOG_REST.push({ id:`ENG-${250+i}`, title:`Backlog item ${i}`, priority:['high','medium','low'][i%3], type:'Feature', pts:[3,5,8][i%3], readiness:['green','amber','red'][i%3], feature:null, deadline:null });
+
+let aiRun = false;
+let addedToSprint = new Set();
+let currentFilter = 'all';
+let pendingId = null;
+
+function pb(p){ return `<span class="badge b-${p}">${p.charAt(0).toUpperCase()+p.slice(1)}</span>`; }
+function rb(r){ const map={green:'b-green Ready',amber:'b-amber Needs attention',red:'b-red Not ready'}; const [cls,txt]=map[r].split(' '); return `<span class="badge ${cls}">${txt}</span>`; }
+function rdot(r){ return `<div class="rdot rdot-${r}"></div>`; }
+
+function renderSprintTicket(t){
+  const issues = t.issues?.length ? `<div class="issue-block">
+    <div class="block-label">⚠ Readiness issues</div>
+    ${t.issues.map(i=>`<div class="issue-item">${i}</div>`).join('')}
+  </div>` : '';
+  const questions = t.questions?.length ? `<div class="questions-block">
+    <div class="block-label">Anticipated questions</div>
+    ${t.questions.map(q=>`<div class="question-item">${q}</div>`).join('')}
+  </div>` : '';
+  const dl = t.deadline ? `<span class="badge b-deadline">⚑ ${t.deadline}</span>` : '';
+  return `<div class="ticket sprint-ticket">
+    <div class="ticket-body">
+      <div class="ticket-top"><span class="ticket-id">${t.id}</span><span class="badge b-sprint">In Sprint 24</span></div>
+      <div class="ticket-title">${t.title}</div>
+      <div class="ticket-meta">${pb(t.priority)}<span class="badge b-type">${t.type}</span>${rb(t.readiness)}${dl}</div>
+      ${issues}${questions}
+    </div>
+    <div class="ticket-right"><span class="pts">${t.pts} pts</span>${rdot(t.readiness)}</div>
+  </div>`;
+}
+
+function renderSuggestion(t){
+  if(addedToSprint.has(t.id)) return `<div class="ticket" style="opacity:.45;border-left:3px solid var(--green)">
+    <div class="ticket-body">
+      <div class="ticket-top"><span class="ticket-id">${t.id}</span><span class="badge b-sprint">Added to Jira ✓</span></div>
+      <div class="ticket-title">${t.title}</div>
+    </div>
+    <div class="ticket-right"><span class="pts">${t.pts} pts</span></div>
+  </div>`;
+
+  const dl = t.deadline ? `<span class="badge b-deadline">⚑ ${t.deadline}</span>` : '';
+  return `<div class="ticket ai-suggested" onclick="openModal('${t.id}')">
+    <div class="ticket-body">
+      <div class="ticket-top"><span class="ticket-id">${t.id}</span><span class="badge b-ai">✦ AI suggested</span></div>
+      <div class="ticket-title">${t.title}</div>
+      <div class="ticket-meta">${pb(t.priority)}<span class="badge b-type">${t.type}</span>${rb(t.readiness)}${dl}</div>
+      <div class="ai-reason">
+        <div class="ai-reason-label">Why suggested</div>
+        <div class="ai-reason-text">${t.why}</div>
+      </div>
+    </div>
+    <div class="ticket-right">
+      <span class="pts">${t.pts} pts</span>
+      ${rdot(t.readiness)}
+      <button class="add-btn" onclick="event.stopPropagation();openModal('${t.id}')">+ Add to sprint</button>
+    </div>
+  </div>`;
+}
+
+function renderBacklogTicket(t){
+  const dl = t.deadline ? `<span class="badge b-deadline">⚑ ${t.deadline}</span>` : '';
+  return `<div class="ticket plain">
+    <div class="ticket-body">
+      <div class="ticket-top"><span class="ticket-id">${t.id}</span></div>
+      <div class="ticket-title">${t.title}</div>
+      <div class="ticket-meta">${pb(t.priority)}<span class="badge b-type">${t.type}</span>${rb(t.readiness)}${dl}</div>
+    </div>
+    <div class="ticket-right"><span class="pts">${t.pts} pts</span>${rdot(t.readiness)}</div>
+  </div>`;
+}
+
+function getFilteredBacklog(){
+  let items = BACKLOG_REST;
+  if(currentFilter==='suggested') return [];
+  if(currentFilter==='high') items = items.filter(t=>t.priority==='high');
+  if(currentFilter==='ready') items = items.filter(t=>t.readiness==='green');
+  if(currentFilter==='amber') items = items.filter(t=>t.readiness==='amber');
+  if(currentFilter==='notready') items = items.filter(t=>t.readiness==='red');
+  return items;
+}
+
+function getFilteredSuggestions(){
+  if(!aiRun) return [];
+  if(currentFilter==='high') return SUGGESTIONS.filter(t=>t.priority==='high');
+  if(currentFilter==='ready') return SUGGESTIONS.filter(t=>t.readiness==='green');
+  if(currentFilter==='amber') return SUGGESTIONS.filter(t=>t.readiness==='amber');
+  if(currentFilter==='notready') return SUGGESTIONS.filter(t=>t.readiness==='red');
+  return SUGGESTIONS;
+}
+
+function renderAll(){
+  // Sprint queue
+  const allSprint = [...SPRINT, ...SUGGESTIONS.filter(t=>addedToSprint.has(t.id)).map(t=>({...t,issues:t.readiness!=='green'?['Review AI reasoning before grooming']:[]}))];
+  document.getElementById('sprint-list').innerHTML = allSprint.map(renderSprintTicket).join('');
+  updateStats(allSprint);
+
+  // Backlog suggestions
+  if(aiRun){
+    const suggs = getFilteredSuggestions();
+    const remaining = SUGGESTIONS.filter(t=>!addedToSprint.has(t.id)).length;
+    document.getElementById('suggested-section').style.display = suggs.length ? 'block' : 'none';
+    document.getElementById('suggested-list').innerHTML = suggs.map(renderSuggestion).join('');
+    document.getElementById('suggested-remaining').textContent = remaining > 0 ? `${remaining} not yet added` : 'All added ✓';
+    document.getElementById('ai-banner').style.display = 'flex';
+  } else {
+    document.getElementById('suggested-section').style.display = 'none';
+  }
+
+  // Backlog rest
+  const filtered = getFilteredBacklog();
+  document.getElementById('backlog-title').textContent = `Backlog · ${filtered.length} tickets`;
+  document.getElementById('backlog-list').innerHTML = filtered.map(renderBacklogTicket).join('');
+
+  renderTimeline(allSprint);
+}
+
+function updateStats(allSprint){
+  const total = allSprint.length;
+  const pts = allSprint.reduce((s,t)=>s+t.pts,0);
+  const ready = allSprint.filter(t=>t.readiness==='green').length;
+  const issues = allSprint.filter(t=>t.readiness!=='green').length;
+  const pct = total ? Math.round(ready/total*100) : 0;
+  const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  set('sb-total',total); set('sb-pts',pts); set('sb-ready',ready); set('sb-issues',issues);
+  set('st-total',total); set('st-pts',pts); set('st-ready',ready); set('st-issues',issues);
+  set('tab-sprint-count',total);
+  document.getElementById('sb-bar').style.width = pct+'%';
+  document.getElementById('sb-label').textContent = `${pct}% ready`;
+}
+
+function renderTimeline(sprintTickets){
+  const grid = document.getElementById('timeline-grid');
+  if(!sprintTickets.length){ grid.innerHTML='<div style="text-align:center;padding:30px;color:var(--text3);font-size:13px">No tickets in sprint</div>'; return; }
+  const features = {};
+  sprintTickets.forEach(t => {
+    const k = t.feature||'Other';
+    if(!features[k]) features[k] = {tickets:[], deadline:t.deadline};
+    features[k].tickets.push(t);
+    if(t.deadline && !features[k].deadline) features[k].deadline = t.deadline;
+  });
+  let html = `<div class="tl-row"><div class="tl-label">Sprint 24</div><div class="tl-track"><div class="tl-bar" style="left:0;width:25%;background:#C5BFFA;color:var(--purple)">Sprint 24</div></div></div>`;
+  Object.entries(features).forEach(([name,data])=>{
+    const pts = data.tickets.reduce((s,t)=>s+t.pts,0);
+    const hasRed = data.tickets.some(t=>t.readiness==='red');
+    const hasAmber = data.tickets.some(t=>t.readiness==='amber');
+    const bg = hasRed?'var(--red-light)':hasAmber?'var(--amber-light)':'var(--green-light)';
+    const col = hasRed?'var(--red)':hasAmber?'var(--amber)':'var(--green)';
+    const border = hasRed?'#F09595':hasAmber?'#EF9F27':'#9FE1CB';
+    html += `<div class="tl-row">
+      <div class="tl-label" title="${name}">${name}</div>
+      <div class="tl-track">
+        <div class="tl-bar" style="left:0;width:37%;background:${bg};color:${col};border:1px solid ${border}">${pts} pts</div>
+        ${data.deadline?`<div class="tl-bar" style="left:36%;width:6%;background:var(--red-light);color:var(--red);font-size:10px;border:1px solid #F09595">⚑ ${data.deadline}</div>`:''}
+      </div>
+    </div>`;
+  });
+  grid.innerHTML = html;
+}
+
+function setFilter(f, btn){
+  currentFilter = f;
+  document.querySelectorAll('.ifilter').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
+function switchTab(tab, el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+
+function runAI(){
+  if(aiRun) return;
+  const btn = document.getElementById('run-btn');
+  btn.textContent = '✦ Analysing backlog...';
+  btn.style.opacity = '.7';
+  setTimeout(()=>{
+    aiRun = true;
+    btn.classList.add('done');
+    btn.textContent = '✦ Analysis complete';
+    renderAll();
+    // Switch to backlog tab to show suggestions
+    document.querySelectorAll('.tab')[1].click();
+  }, 1600);
+}
+
+function openDevBrief(){
+  const allSprint = [...SPRINT, ...SUGGESTIONS.filter(t=>addedToSprint.has(t.id))];
+  const html = allSprint.map(t => {
+    const colorClass = t.readiness === 'green' ? 'green' : t.readiness === 'amber' ? 'amber' : 'red';
+    const questionsHtml = t.questions && t.questions.length
+      ? t.questions.map(q => `<div><span class="sq">?</span> ${q}</div>`).join('')
+      : `<div class="slack-ticket-no-qs">✓ No anticipated questions — ticket looks clear</div>`;
+    return `<div class="slack-ticket-block ${colorClass}">
+      <div class="slack-ticket-id">${t.id} · ${t.type} · ${t.pts} pts</div>
+      <div class="slack-ticket-title">${t.title}</div>
+      <div class="slack-ticket-qs">${questionsHtml}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('slack-tickets').innerHTML = html;
+  document.getElementById('dev-brief-modal').classList.add('visible');
+}
+function closeDevBrief(){ document.getElementById('dev-brief-modal').classList.remove('visible'); }
+
+function openModal(id){
+  const t = SUGGESTIONS.find(t=>t.id===id);
+  if(!t) return;
+  pendingId = id;
+  document.getElementById('modal-id').textContent = t.id;
+  document.getElementById('modal-title').textContent = t.title;
+  document.getElementById('modal').classList.add('visible');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('visible'); pendingId=null; }
+function confirmAdd(){
+  if(!pendingId) return;
+  addedToSprint.add(pendingId);
+  closeModal();
+  renderAll();
+}
+
+renderAll();
+</script>
+</body>
+</html>
